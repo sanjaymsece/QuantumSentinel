@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QuantumSentinel - BB84 Eavesdropper Detector</title>
+<style>
+:root{--bg:#f3f0fa;--card:#fff;--ink:#1b1b2f;--mute:#6b6b80;--pur:#7c4dff;--pink:#ff7eb6;--ok:#1e8e3e;--bad:#d93025;--line:#d9d2ef;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15112b;--card:#221b45;--ink:#eee9ff;--mute:#a79fcf;--line:#3a3070;--ok:#5bd17a;--bad:#ff6b5e}}
+:root[data-theme="dark"]{--bg:#15112b;--card:#221b45;--ink:#eee9ff;--mute:#a79fcf;--line:#3a3070;--ok:#5bd17a;--bad:#ff6b5e}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.w{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 2px}.sub{color:var(--mute);font-size:13px;margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+label{display:flex;justify-content:space-between;font-size:13px;margin:10px 0 4px}label b{color:var(--pur)}
+input[type=range],select{width:100%}select{padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.seg{display:flex;gap:6px}.seg button{flex:1;padding:9px 4px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:14px}
+.seg button.on{background:var(--pur);color:#fff;border-color:var(--pur)}
+.row{display:flex;gap:8px;margin-top:12px}.row button{flex:1;padding:12px;border-radius:12px;border:0;font-size:15px;font-weight:600}
+#run{background:var(--pink);color:#1b1b2f}#run20{background:var(--pur);color:#fff}
+button:disabled{opacity:.5}
+.v{display:grid;grid-template-columns:1fr 1fr;gap:8px}.vb{border-radius:12px;padding:10px;border:2px solid var(--line);text-align:center}
+.vb small{display:block;color:var(--mute);font-size:11px}.vb strong{font-size:15px}.abort{border-color:var(--bad)}.abort strong{color:var(--bad)}.keep{border-color:var(--ok)}.keep strong{color:var(--ok)}
+.m{display:flex;justify-content:space-between;font-size:13px;margin-top:10px;color:var(--mute)}.m b{color:var(--ink)}
+.t{font-size:12px;color:var(--mute);margin-top:8px}svg{width:100%;height:auto;display:block}
+#srv{padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:100%;font-size:13px}
+.eng{font-size:11px;color:var(--mute);margin-top:6px}
+</style></head><body><div class="w">
+<h1>QuantumSentinel</h1>
+<p class="sub">BB84 eavesdropper detector. Team Quantum Syndicate, Q-Hack India 2026</p>
+<div class="card">
+<label>Eavesdropper (Eve)</label>
+<div class="seg" id="seg"><button data-m="off" class="on">Off</button><button data-m="steady">Steady</button><button data-m="burst">Burst</button></div>
+<label>Eve strength <b id="strv">50%</b></label><input type="range" id="str" min="15" max="100" value="50">
+<label>Channel noise</label><select id="nt"><option value="none">None</option><option value="bitflip">Bit-flip</option><option value="dephase">Dephasing</option><option value="depol" selected>Depolarizing</option></select>
+<label>Noise level <b id="npv">4%</b></label><input type="range" id="np" min="0" max="15" value="4">
+<label>Qubits per session <b id="nv">2000</b></label><input type="range" id="n" min="500" max="4000" step="500" value="2000">
+<label>Engine</label>
+<div class="seg" id="eseg"><button data-e="qiskit" class="on">&#9883; Qiskit (Aer)</button><button data-e="classical">Classical (JS)</button></div>
+<label>Backend server</label><input id="srv" value="http://localhost:8000">
+<div class="row"><button id="run">Run session</button><button id="run20">Run 20</button></div>
+<div class="eng" id="engstat">Qiskit engine: real BB84 circuits on IBM Qiskit Aer (stabilizer simulator) with Pauli noise channels, served by the FastAPI backend.</div>
+</div>
+<div class="card"><div class="v"><div class="vb" id="v1"><small>Standard rule (QBER above 11%)</small><strong>-</strong></div><div class="vb" id="v2"><small>QuantumSentinel (ML)</small><strong>-</strong></div></div>
+<div class="m"><span>QBER <b id="q">-</b></span><span>Z basis <b id="qz">-</b></span><span>X basis <b id="qx">-</b></span><span>Eve prob. <b id="pe">-</b></span></div>
+<div class="t" id="truth">Press Run session.</div></div>
+<div class="card"><div style="font-size:13px;margin-bottom:6px">Error rate per block of the session (dashed = 11% abort line)</div><svg id="ch" viewBox="0 0 320 120"></svg></div>
+<div class="card"><div style="font-size:13px"><b>Scoreboard</b> <span id="sb">no sessions yet</span></div>
+<div class="t">Quantum engine: exact BB84 circuits (X/H encode, identity-delay channel with Pauli noise, Eve intercept-resend) executed on Qiskit Aer, stabilizer method. Classical engine: statistically identical Monte-Carlo twin in JS, kept as a baseline for comparison. Detector: logistic regression trained on 6,000 simulated sessions (retrainable via notebooks/02 on real Qiskit output). Not tested on real quantum hardware.</div></div>
+</div>
+<script>
+const M={"mean": [0.21130393195476058, 0.21126060052197893, 0.21133098910768758, 0.046950920479139485, 0.09260961327289759, 0.3542489243444237], "scale": [0.1614374629758968, 0.1650385382552084, 0.16398692892001554, 0.04223413764685196, 0.07502625374256292, 0.23356815851627744], "coef": [3.370636253756051, 3.554240302816561, 3.0963800221090323, -0.6717505139563884, 0.6538983759804066, 3.372289558136077], "b": 9.864056773623515};
+const $=i=>document.getElementById(i);let mode='off',eng='qiskit',busy=false,tl={n:0,r:0,g:0};
+const R=()=>Math.random(),B=()=>R()<.5?1:0;
+document.querySelectorAll('#seg button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('#seg button').forEach(x=>x.classList.toggle('on',x===b))});
+document.querySelectorAll('#eseg button').forEach(b=>b.onclick=()=>{eng=b.dataset.e;document.querySelectorAll('#eseg button').forEach(x=>x.classList.toggle('on',x===b));
+$('engstat').textContent=eng==='qiskit'?'Qiskit engine: real BB84 circuits on IBM Qiskit Aer (stabilizer simulator) with Pauli noise channels, served by the FastAPI backend.':'Classical engine: in-browser Monte-Carlo twin (original JS simulation). No server needed.'});
+[['str','strv'],['np','npv'],['n','nv']].forEach(([a,b])=>{$(a).oninput=()=>$(b).textContent=$(a).value+(a==='n'?'':'%')});
+function params(){return{mode,strength:+$('str').value/100,noise_type:$('nt').value,noise_level:+$('np').value/100,n:+$('n').value}}
+function sim(){const n=+$('n').value,f=$('str').value/100,lv=$('np').value/100,nt=$('nt').value;
+const px=nt==='bitflip'?lv:0,pz=nt==='dephase'?lv:0,pd=nt==='depol'?lv:0;const mask=new Uint8Array(n);
+if(mode==='steady')for(let i=0;i<n;i++)mask[i]=R()<f?1:0;
+if(mode==='burst'){const L=Math.floor(n*f),s=Math.floor(R()*(n-L+1));for(let i=0;i<L;i++)mask[s+i]=1}
+const A=[],Bo=[],Bs=[];
+for(let i=0;i<n;i++){const a=B(),ba=B(),bb=B();let sb=ba,v=a;
+if(mask[i]){const be=B();v=be===ba?a:B();sb=be}
+let xe=R()<px,ze=R()<pz;if(R()<pd){const w=Math.floor(R()*3);if(w<2)xe=!xe;if(w>0)ze=!ze}
+if(sb===0?xe:ze)v^=1;const bob=bb===sb?v:B();if(ba===bb){A.push(a);Bo.push(bob);Bs.push(ba)}}
+const m=A.length,idx=[...Array(m).keys()];for(let i=m-1;i>0;i--){const j=Math.floor(R()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]]}
+const sel=idx.slice(0,Math.floor(m/2)).sort((x,y)=>x-y);const er=sel.map(i=>A[i]!==Bo[i]?1:0),bs=sel.map(i=>Bs[i]);
+const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;const q=mean(er),qz=mean(er.filter((_,i)=>bs[i]===0)),qx=mean(er.filter((_,i)=>bs[i]===1));
+const k=er.length,base=Math.floor(k/8),ex=k%8,bq=[];let p=0;for(let b=0;b<8;b++){const len=base+(b<ex?1:0);bq.push(mean(er.slice(p,p+len)));p+=len}
+const mu=mean(bq),sd=Math.sqrt(mean(bq.map(x=>(x-mu)**2))),mx=Math.max(...bq);
+const x=[q,qz,qx,Math.abs(qz-qx),sd,mx];let z=M.b;x.forEach((v,j)=>z+=M.coef[j]*(v-M.mean[j])/M.scale[j]);
+return{q,qz,qx,bq,pe:1/(1+Math.exp(-z)),truth:mode!=='off'}}
+function show(r){const rule=r.q>.11,g=r.pe>.5,pc=x=>(x*100).toFixed(1)+'%';
+const set=(id,bad,t)=>{const e=$(id);e.className='vb '+(bad?'abort':'keep');e.querySelector('strong').textContent=t};
+set('v1',rule,rule?'ABORT':'KEEP KEY');set('v2',g,g?'EAVESDROPPER':'CHANNEL OK');
+$('q').textContent=pc(r.q);$('qz').textContent=pc(r.qz);$('qx').textContent=pc(r.qx);$('pe').textContent=pc(r.pe);
+$('truth').textContent='Ground truth: '+(r.truth?'Eve was attacking ('+mode+')':'no eavesdropper')+'. Standard rule '+(rule===r.truth?'correct':'wrong')+', QuantumSentinel '+(g===r.truth?'correct':'wrong')+'.';
+const top=Math.max(.3,...r.bq),H=100;let s='';r.bq.forEach((v,i)=>{const h=v/top*H;s+=`<rect x="${14+i*38}" y="${108-h}" width="28" height="${h}" rx="3" fill="${v>.11?'#ff7eb6':'#7c4dff'}"/><text x="${28+i*38}" y="118" font-size="8" text-anchor="middle" fill="currentColor">${i+1}</text>`});
+s+=`<line x1="8" x2="316" y1="${108-.11/top*H}" y2="${108-.11/top*H}" stroke="currentColor" stroke-dasharray="4 3" opacity=".6"/>`;$('ch').innerHTML=s}
+function tally(r){tl.n++;if((r.q>.11)===r.truth)tl.r++;if((r.pe>.5)===r.truth)tl.g++}
+function sboard(){const pc=x=>(x*100).toFixed(0)+'%';$('sb').textContent=`${tl.n} sessions (${eng==='qiskit'?'Qiskit':'Classical'}): standard rule right ${tl.r} (${pc(tl.r/tl.n)}%), QuantumSentinel right ${tl.g} (${pc(tl.g/tl.n)}%)`}
+async function goRemote(c){const srv=$('srv').value.replace(/\/$/,'');let last=null;
+for(let i=0;i<c;i++){const res=await fetch(srv+'/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...params(),engine:'aer'})});
+if(!res.ok)throw new Error('HTTP '+res.status+': '+await res.text());const d=await res.json();tally(d);last=d}
+return last}
+async function go(c){if(busy)return;busy=true;$('run').disabled=$('run20').disabled=true;
+try{let last=null;
+if(eng==='qiskit'){try{last=await goRemote(c)}catch(e){$('truth').textContent='Backend unreachable ('+e.message+'). Start it with: uvicorn main:app --port 8000  (or switch engine to Classical).';busy=false;$('run').disabled=$('run20').disabled=false;return}}
+else{for(let i=0;i<c;i++){last=sim();tally(last)}}
+show(last);sboard()}finally{busy=false;$('run').disabled=$('run20').disabled=false}}
+$('run').onclick=()=>go(1);$('run20').onclick=()=>go(20);
+</script></body></html>
