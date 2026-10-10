@@ -73,13 +73,16 @@ def ml_infer(feats):
 
 # ------------------------------------------------------------ engines
 def run_classical(req: RunRequest, rng):
-    """NumPy Monte-Carlo twin of the Qiskit circuit (identical statistics)."""
+    """NumPy Monte-Carlo twin of the Qiskit circuit (same statistics)."""
     n = req.n
     a = rng.integers(0, 2, n)
     ba = rng.integers(0, 2, n)
     bb = rng.integers(0, 2, n)
     mask = eve_mask(rng, req.mode, req.strength, n)
-    flip = mask & (rng.random(n) < 0.5)   # intercept-resend: random-basis measure == flip w.p. 1/2
+    # Intercept-resend: Eve picks a random basis. If it differs from Alice's basis,
+    # Bob's result is random (wrong w.p. 1/2). Same in both bases -> QBER = f/4.
+    be = rng.integers(0, 2, n)
+    flip = mask & (be != ba) & (rng.random(n) < 0.5)
     lv = req.noise_level
     px = lv if req.noise_type == "bitflip" else 0.0
     pz = lv if req.noise_type == "dephase" else 0.0
@@ -121,7 +124,8 @@ def run_qiskit(req: RunRequest, rng):
     ba = rng.integers(0, 2, n)
     bb = rng.integers(0, 2, n)
     mask = eve_mask(rng, req.mode, req.strength, n)
-    flip = mask & (rng.random(n) < 0.5)
+    be = rng.integers(0, 2, n)                      # Eve's random basis
+    flip = mask & (be != ba) & (rng.random(n) < 0.5)
 
     nm = NoiseModel()
     p = req.noise_level
@@ -147,11 +151,12 @@ def run_qiskit(req: RunRequest, rng):
                 qc.h(i)             # Alice encodes in X basis
             qc.id(i)                # channel: every noise model attaches here
             if flip[j]:
-                qc.x(i)             # Eve intercept-resend flip
+                qc.z(i) if ba[j] else qc.x(i)   # Eve disturbs both bases equally
             if bb[j]:
                 qc.h(i)             # Bob decodes
             qc.measure(i, i)
-        tqc = transpile(qc, sim)
+        # optimization_level=0 so the transpiler cannot drop the noisy 'id' gates
+        tqc = transpile(qc, sim, optimization_level=0)
         counts = sim.run(tqc, noise_model=nm, shots=1,
                          seed_simulator=int(rng.integers(0, 2**31))).result().get_counts()
         bitstr = next(iter(counts))  # shots=1 -> single outcome for all k qubits
