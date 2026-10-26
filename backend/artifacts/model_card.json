@@ -1,0 +1,555 @@
+{
+  "name": "BB84 QuantumSentinel Detector",
+  "version": "1.0.0",
+  "trained_at": "2026-10-26T04:07:45+00:00",
+  "feature_names": [
+    "noise_percent",
+    "qber",
+    "expected_qber",
+    "qber_excess",
+    "qber_ratio",
+    "qber_z",
+    "x_qber",
+    "z_qber",
+    "expected_x_qber",
+    "expected_z_qber",
+    "x_excess",
+    "z_excess",
+    "sift_rate",
+    "sifted_bits",
+    "block_size",
+    "block_mean",
+    "block_std",
+    "block_min",
+    "block_max",
+    "block_range",
+    "block_median",
+    "block_p90",
+    "block_p95",
+    "block_max_excess",
+    "block_max_ratio",
+    "block_std_ratio",
+    "block_max_z",
+    "blocks_over_threshold",
+    "block_autocorr",
+    "block_kurtosis",
+    "channel_depolarizing",
+    "channel_amplitude_damping",
+    "channel_phase_damping"
+  ],
+  "decision_threshold": 0.66,
+  "standard_threshold_percent": 11.0,
+  "block_count": 20,
+  "dataset": {
+    "sessions": 24000,
+    "seed": 20261026,
+    "attack_rate": 0.548542,
+    "split": {
+      "train": 16800,
+      "validation": 3600,
+      "test": 3600,
+      "final_training": 20400
+    },
+    "qubit_range": [
+      100,
+      5000
+    ],
+    "noise_range_percent": [
+      0,
+      20
+    ],
+    "channels": [
+      "depolarizing",
+      "amplitude_damping",
+      "phase_damping"
+    ],
+    "eve_modes": [
+      "off",
+      "steady",
+      "burst"
+    ],
+    "eve_strength_range_percent": [
+      1,
+      100
+    ]
+  },
+  "model": {
+    "type": "CalibratedClassifierCV(HistGradientBoostingClassifier)",
+    "calibration": "sigmoid",
+    "cv_folds": 3,
+    "hyperparameters": {
+      "learning_rate": 0.07,
+      "max_iter": 350,
+      "max_leaf_nodes": 31,
+      "min_samples_leaf": 40,
+      "l2_regularization": 1.0,
+      "early_stopping": true,
+      "n_iter_no_change": 25
+    }
+  },
+  "metrics": {
+    "ml": {
+      "samples": 3600,
+      "positives": 1975,
+      "negatives": 1625,
+      "threshold": 0.66,
+      "accuracy": 0.945278,
+      "precision": 0.991704,
+      "recall": 0.907848,
+      "f1": 0.947925,
+      "false_positive_rate": 0.009231,
+      "false_negative_rate": 0.092152,
+      "confusion_matrix": {
+        "true_negative": 1610,
+        "false_positive": 15,
+        "false_negative": 182,
+        "true_positive": 1793
+      },
+      "roc_auc": 0.987718,
+      "brier_score": 0.037693
+    },
+    "standard_rule": {
+      "samples": 3600,
+      "positives": 1975,
+      "negatives": 1625,
+      "threshold": null,
+      "accuracy": 0.660833,
+      "precision": 0.673095,
+      "recall": 0.742278,
+      "f1": 0.705996,
+      "false_positive_rate": 0.438154,
+      "false_negative_rate": 0.257722,
+      "confusion_matrix": {
+        "true_negative": 913,
+        "false_positive": 712,
+        "false_negative": 509,
+        "true_positive": 1466
+      }
+    },
+    "ml_advantage": {
+      "additional_attacks_caught": 451,
+      "false_alarms_avoided": 702
+    },
+    "by_mode": {
+      "none": {
+        "samples": 1625,
+        "positives": 0,
+        "negatives": 1625,
+        "threshold": 0.66,
+        "accuracy": 0.990769,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "false_positive_rate": 0.009231,
+        "false_negative_rate": 0.0,
+        "confusion_matrix": {
+          "true_negative": 1610,
+          "false_positive": 15,
+          "false_negative": 0,
+          "true_positive": 0
+        },
+        "roc_auc": null,
+        "brier_score": null
+      },
+      "steady": {
+        "samples": 981,
+        "positives": 981,
+        "negatives": 0,
+        "threshold": 0.66,
+        "accuracy": 0.920489,
+        "precision": 1.0,
+        "recall": 0.920489,
+        "f1": 0.958599,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 0.079511,
+        "confusion_matrix": {
+          "true_negative": 0,
+          "false_positive": 0,
+          "false_negative": 78,
+          "true_positive": 903
+        },
+        "roc_auc": null,
+        "brier_score": null
+      },
+      "burst": {
+        "samples": 994,
+        "positives": 994,
+        "negatives": 0,
+        "threshold": 0.66,
+        "accuracy": 0.895372,
+        "precision": 1.0,
+        "recall": 0.895372,
+        "f1": 0.944798,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 0.104628,
+        "confusion_matrix": {
+          "true_negative": 0,
+          "false_positive": 0,
+          "false_negative": 104,
+          "true_positive": 890
+        },
+        "roc_auc": null,
+        "brier_score": null
+      }
+    },
+    "by_channel": {
+      "depolarizing": {
+        "samples": 1187,
+        "positives": 634,
+        "negatives": 553,
+        "threshold": 0.66,
+        "accuracy": 0.930918,
+        "precision": 0.991103,
+        "recall": 0.878549,
+        "f1": 0.931438,
+        "false_positive_rate": 0.009042,
+        "false_negative_rate": 0.121451,
+        "confusion_matrix": {
+          "true_negative": 548,
+          "false_positive": 5,
+          "false_negative": 77,
+          "true_positive": 557
+        },
+        "roc_auc": 0.97674,
+        "brier_score": 0.050194
+      },
+      "amplitude_damping": {
+        "samples": 1211,
+        "positives": 691,
+        "negatives": 520,
+        "threshold": 0.66,
+        "accuracy": 0.912469,
+        "precision": 0.985075,
+        "recall": 0.859624,
+        "f1": 0.918083,
+        "false_positive_rate": 0.017308,
+        "false_negative_rate": 0.140376,
+        "confusion_matrix": {
+          "true_negative": 511,
+          "false_positive": 9,
+          "false_negative": 97,
+          "true_positive": 594
+        },
+        "roc_auc": 0.974633,
+        "brier_score": 0.057069
+      },
+      "phase_damping": {
+        "samples": 1202,
+        "positives": 650,
+        "negatives": 552,
+        "threshold": 0.66,
+        "accuracy": 0.992512,
+        "precision": 0.998445,
+        "recall": 0.987692,
+        "f1": 0.993039,
+        "false_positive_rate": 0.001812,
+        "false_negative_rate": 0.012308,
+        "confusion_matrix": {
+          "true_negative": 551,
+          "false_positive": 1,
+          "false_negative": 8,
+          "true_positive": 642
+        },
+        "roc_auc": 0.999501,
+        "brier_score": 0.005826
+      }
+    },
+    "by_qubit_count": {
+      "100-499": {
+        "ml": {
+          "samples": 289,
+          "positives": 155,
+          "negatives": 134,
+          "threshold": 0.66,
+          "accuracy": 0.806228,
+          "precision": 0.971429,
+          "recall": 0.658065,
+          "f1": 0.784615,
+          "false_positive_rate": 0.022388,
+          "false_negative_rate": 0.341935,
+          "confusion_matrix": {
+            "true_negative": 131,
+            "false_positive": 3,
+            "false_negative": 53,
+            "true_positive": 102
+          },
+          "roc_auc": 0.905729,
+          "brier_score": 0.120904
+        },
+        "standard_rule": {
+          "samples": 289,
+          "positives": 155,
+          "negatives": 134,
+          "threshold": null,
+          "accuracy": 0.657439,
+          "precision": 0.67284,
+          "recall": 0.703226,
+          "f1": 0.687697,
+          "false_positive_rate": 0.395522,
+          "false_negative_rate": 0.296774,
+          "confusion_matrix": {
+            "true_negative": 81,
+            "false_positive": 53,
+            "false_negative": 46,
+            "true_positive": 109
+          }
+        }
+      },
+      "500-999": {
+        "ml": {
+          "samples": 376,
+          "positives": 191,
+          "negatives": 185,
+          "threshold": 0.66,
+          "accuracy": 0.898936,
+          "precision": 0.958084,
+          "recall": 0.837696,
+          "f1": 0.893855,
+          "false_positive_rate": 0.037838,
+          "false_negative_rate": 0.162304,
+          "confusion_matrix": {
+            "true_negative": 178,
+            "false_positive": 7,
+            "false_negative": 31,
+            "true_positive": 160
+          },
+          "roc_auc": 0.963832,
+          "brier_score": 0.070512
+        },
+        "standard_rule": {
+          "samples": 376,
+          "positives": 191,
+          "negatives": 185,
+          "threshold": null,
+          "accuracy": 0.646277,
+          "precision": 0.627193,
+          "recall": 0.748691,
+          "f1": 0.682578,
+          "false_positive_rate": 0.459459,
+          "false_negative_rate": 0.251309,
+          "confusion_matrix": {
+            "true_negative": 100,
+            "false_positive": 85,
+            "false_negative": 48,
+            "true_positive": 143
+          }
+        }
+      },
+      "1000-2499": {
+        "ml": {
+          "samples": 1104,
+          "positives": 613,
+          "negatives": 491,
+          "threshold": 0.66,
+          "accuracy": 0.949275,
+          "precision": 0.994671,
+          "recall": 0.91354,
+          "f1": 0.952381,
+          "false_positive_rate": 0.00611,
+          "false_negative_rate": 0.08646,
+          "confusion_matrix": {
+            "true_negative": 488,
+            "false_positive": 3,
+            "false_negative": 53,
+            "true_positive": 560
+          },
+          "roc_auc": 0.985943,
+          "brier_score": 0.037565
+        },
+        "standard_rule": {
+          "samples": 1104,
+          "positives": 613,
+          "negatives": 491,
+          "threshold": null,
+          "accuracy": 0.655797,
+          "precision": 0.672593,
+          "recall": 0.74062,
+          "f1": 0.704969,
+          "false_positive_rate": 0.450102,
+          "false_negative_rate": 0.25938,
+          "confusion_matrix": {
+            "true_negative": 270,
+            "false_positive": 221,
+            "false_negative": 159,
+            "true_positive": 454
+          }
+        }
+      },
+      "2500-5000": {
+        "ml": {
+          "samples": 1831,
+          "positives": 1016,
+          "negatives": 815,
+          "threshold": 0.66,
+          "accuracy": 0.974331,
+          "precision": 0.997945,
+          "recall": 0.955709,
+          "f1": 0.97637,
+          "false_positive_rate": 0.002454,
+          "false_negative_rate": 0.044291,
+          "confusion_matrix": {
+            "true_negative": 813,
+            "false_positive": 2,
+            "false_negative": 45,
+            "true_positive": 971
+          },
+          "roc_auc": 0.995779,
+          "brier_score": 0.017896
+        },
+        "standard_rule": {
+          "samples": 1831,
+          "positives": 1016,
+          "negatives": 815,
+          "threshold": null,
+          "accuracy": 0.667395,
+          "precision": 0.682839,
+          "recall": 0.748031,
+          "f1": 0.71395,
+          "false_positive_rate": 0.433129,
+          "false_negative_rate": 0.251969,
+          "confusion_matrix": {
+            "true_negative": 462,
+            "false_positive": 353,
+            "false_negative": 256,
+            "true_positive": 760
+          }
+        }
+      }
+    },
+    "by_eve_strength": {
+      "1-10": {
+        "samples": 207,
+        "positives": 207,
+        "negatives": 0,
+        "threshold": 0.66,
+        "accuracy": 0.555556,
+        "precision": 1.0,
+        "recall": 0.555556,
+        "f1": 0.714286,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 0.444444,
+        "confusion_matrix": {
+          "true_negative": 0,
+          "false_positive": 0,
+          "false_negative": 92,
+          "true_positive": 115
+        },
+        "roc_auc": null,
+        "brier_score": null
+      },
+      "11-25": {
+        "samples": 285,
+        "positives": 285,
+        "negatives": 0,
+        "threshold": 0.66,
+        "accuracy": 0.842105,
+        "precision": 1.0,
+        "recall": 0.842105,
+        "f1": 0.914286,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 0.157895,
+        "confusion_matrix": {
+          "true_negative": 0,
+          "false_positive": 0,
+          "false_negative": 45,
+          "true_positive": 240
+        },
+        "roc_auc": null,
+        "brier_score": null
+      },
+      "26-50": {
+        "samples": 503,
+        "positives": 503,
+        "negatives": 0,
+        "threshold": 0.66,
+        "accuracy": 0.946322,
+        "precision": 1.0,
+        "recall": 0.946322,
+        "f1": 0.972421,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 0.053678,
+        "confusion_matrix": {
+          "true_negative": 0,
+          "false_positive": 0,
+          "false_negative": 27,
+          "true_positive": 476
+        },
+        "roc_auc": null,
+        "brier_score": null
+      },
+      "51-100": {
+        "samples": 980,
+        "positives": 980,
+        "negatives": 0,
+        "threshold": 0.66,
+        "accuracy": 0.981633,
+        "precision": 1.0,
+        "recall": 0.981633,
+        "f1": 0.990731,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 0.018367,
+        "confusion_matrix": {
+          "true_negative": 0,
+          "false_positive": 0,
+          "false_negative": 18,
+          "true_positive": 962
+        },
+        "roc_auc": null,
+        "brier_score": null
+      }
+    },
+    "low_qber_attacks": {
+      "samples": 509,
+      "positives": 509,
+      "negatives": 0,
+      "threshold": 0.66,
+      "accuracy": 0.886051,
+      "precision": 1.0,
+      "recall": 0.886051,
+      "f1": 0.939583,
+      "false_positive_rate": 0.0,
+      "false_negative_rate": 0.113949,
+      "confusion_matrix": {
+        "true_negative": 0,
+        "false_positive": 0,
+        "false_negative": 58,
+        "true_positive": 451
+      },
+      "roc_auc": null,
+      "brier_score": null
+    },
+    "benign_high_qber": {
+      "samples": 712,
+      "positives": 0,
+      "negatives": 712,
+      "threshold": 0.66,
+      "accuracy": 0.985955,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "false_positive_rate": 0.014045,
+      "false_negative_rate": 0.0,
+      "confusion_matrix": {
+        "true_negative": 702,
+        "false_positive": 10,
+        "false_negative": 0,
+        "true_positive": 0
+      },
+      "roc_auc": null,
+      "brier_score": null
+    }
+  },
+  "training_seconds": 29.663,
+  "versions": {
+    "python": "3.12.10",
+    "scikit_learn": "1.9.1",
+    "numpy": "2.5.4",
+    "joblib": "1.6.0"
+  },
+  "notes": [
+    "Features are post-sift observations plus nominal channel context.",
+    "Eve mode, strength, and attack labels are never model inputs.",
+    "The 11% rule uses the session-average QBER and can be evaded by burst attacks whose errors are concentrated in a few blocks.",
+    "This model is trained on simulated BB84 data, not on a deployed QKD link; recalibrate before operational use."
+  ]
+}

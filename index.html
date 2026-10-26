@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuantumSentinel — BB84 Intrusion Detection Console</title>
+<meta name="description" content="QKD channel instrumentation, QBER telemetry and ML-based eavesdropper detection.">
+<meta name="color-scheme" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    color-scheme:dark;
+    --paper:#0B1120;
+    --paper-2:rgba(30,41,59,.68);
+    --ink:#E2E8F0;
+    --muted:#94A3B8;
+    --line:rgba(148,163,184,.18);
+    --line-strong:#334155;
+    --accent:#818CF8;
+    --ok:#34D399;
+    --warn:#FBBF24;
+    --danger:#F87171;
+    --term-bg:#020617;
+    --sans:'IBM Plex Sans',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,'Cascadia Mono',Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font:14px/1.5 var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:rgba(32,58,143,.16)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .hidden{display:none !important}
+
+  /* ---------- App shell ---------- */
+  .app{
+    display:grid;
+    grid-template-columns:320px minmax(0,1fr);
+    height:100vh;
+    overflow:hidden;
+  }
+
+  /* ---------- Left control rail ---------- */
+  .rail{
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    background:var(--paper-2);
+    border-right:1px solid var(--line);
+  }
+  .rail-head{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:18px 20px 16px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand-name{font:600 15px/1.2 var(--sans);letter-spacing:-0.01em}
+  .brand-sub{font:500 9px/1.4 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+  .rail-scroll{flex:1;min-height:0;overflow-y:auto}
+  .rail-foot{
+    border-top:1px solid var(--line);
+    padding:14px 20px 18px;
+  }
+  .section{
+    padding:18px 20px 20px;
+    border-bottom:1px solid var(--line);
+  }
+  .section:last-child{border-bottom:0}
+  .sec-label{
+    display:block;
+    font:600 10px/1 var(--mono);
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:14px;
+  }
+  .field-label{
+    font:500 11px/1 var(--mono);
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  .ctl + .ctl{margin-top:18px}
+  .ctl-row{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .ctl-val{
+    font:600 12px/1 var(--mono);
+    color:var(--ink);
+    font-variant-numeric:tabular-nums;
+  }
+  .ctl-note{
+    margin-top:8px;
+    font:11px/1.5 var(--mono);
+    color:var(--muted);
+  }
+
+  /* Segmented toggle */
+  .seg{
+    display:grid;
+    border:1px solid var(--line-strong);
+    border-radius:3px;
+    background:var(--paper);
+    overflow:hidden;
+  }
+  .seg.eve-seg{grid-template-columns:repeat(3,1fr)}
+  .seg.engine-seg{grid-template-columns:repeat(2,1fr)}
+  .seg button{
+    appearance:none;
+    border:0;
+    border-right:1px solid var(--line);
+    background:transparent;
+    padding:9px 4px;
+    font:500 12px/1 var(--sans);
+    color:var(--muted);
+    cursor:pointer;
+    transition:background .12s ease,color .12s ease;
+  }
+  .seg button:last-child{border-right:0}
+  .seg button:hover{color:var(--ink);background:#EDEAE1}
+  .seg button:active{background:#E4E0D5}
+  .seg button[aria-pressed="true"]{
+    background:var(--ink);
+    color:var(--paper-2);
+    font-weight:600;
+  }
+  .seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  .seg .seg-sub{font-size:10px;color:inherit;opacity:.65;margin-left:3px}
+
+  /* Select */
+  .select{
+    width:100%;
+    appearance:none;
+    padding:9px 34px 9px 12px;
+    font:400 13px/1.2 var(--sans);
+    color:var(--ink);
+    background-color:var(--paper);
+    border:1px solid var(--line-strong);
+    border-radius:3px;
+    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23666A66' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 12px center;
+    cursor:pointer;
+  }
+  .select:hover{border-color:#B3AC9C}
+  .select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+  /* Range sliders */
+  input[type=range]{
+    -webkit-appearance:none;
+    appearance:none;
+    display:block;
+    width:100%;
+    height:16px;
+    margin:0;
+    background:transparent;
+    cursor:pointer;
+  }
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+  input[type=range]::-webkit-slider-runnable-track{
+    height:2px;
+    border-radius:1px;
+    background:linear-gradient(90deg,var(--accent) var(--fill,0%),var(--line) var(--fill,0%));
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:12px;height:12px;
+    margin-top:-5px;
+    border:0;border-radius:2px;
+    background:var(--ink);
+    transition:background .12s ease;
+  }
+  input[type=range]:hover::-webkit-slider-thumb{background:var(--accent)}
+  input[type=range]::-moz-range-track{
+    height:2px;border-radius:1px;
+    background:linear-gradient(90deg,var(--accent) var(--fill,0%),var(--line) var(--fill,0%));
+  }
+  input[type=range]::-moz-range-thumb{
+    width:12px;height:12px;
+    border:0;border-radius:2px;
+    background:var(--ink);
+  }
+  input[type=range]:hover::-moz-range-thumb{background:var(--accent)}
+
+  /* Health indicator + run button */
+  .health{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:12px;
+    font:11px/1.4 var(--mono);
+    color:var(--muted);
+    overflow:hidden;
+  }
+  .health-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dot{flex:none;width:8px;height:8px;border-radius:50%;background:#B4AFA2}
+  .dot[data-state="ok"]{background:var(--ok)}
+  .dot[data-state="warn"]{background:var(--warn)}
+  .dot[data-state="bad"]{background:var(--danger)}
+
+  .btn-primary{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:9px;
+    width:100%;
+    padding:11px 16px;
+    font:600 12px/1 var(--sans);
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--paper-2);
+    background:var(--ink);
+    border:1px solid var(--ink);
+    border-radius:3px;
+    cursor:pointer;
+    transition:background .12s ease,border-color .12s ease;
+  }
+  .btn-primary:hover:not(:disabled){background:var(--accent);border-color:var(--accent)}
+  .btn-primary:active:not(:disabled){background:#16285F;border-color:#16285F}
+  .btn-primary:disabled{opacity:.55;cursor:not-allowed}
+  .spin{animation:rot .8s linear infinite;transform-origin:center}
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  /* ---------- Main area ---------- */
+  .main{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    min-height:0;
+    overflow:hidden;
+  }
+  .main-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:14px 24px;
+    border-bottom:1px solid var(--line);
+    background:var(--paper-2);
+  }
+  .main-title{font:600 16px/1.2 var(--sans);letter-spacing:-0.01em}
+  .main-sub{font:11px/1.4 var(--mono);color:var(--muted);margin-top:2px}
+  .head-meta{display:flex;align-items:center;gap:10px;min-width:0}
+  .session-id{font:500 11px/1 var(--mono);letter-spacing:.08em;color:var(--muted)}
+  .chip{
+    font:600 10px/1 var(--mono);
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    padding:5px 10px;
+    border:1px solid var(--line-strong);
+    border-radius:2px;
+    color:var(--muted);
+    white-space:nowrap;
+  }
+  .chip[data-state="run"]{border-color:#CBB075;color:var(--warn)}
+  .chip[data-state="ok"]{border-color:#9DBFA9;color:var(--ok)}
+  .chip[data-state="error"]{border-color:#D2A196;color:var(--danger)}
+
+  /* KPI strip */
+  .kpis{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    border-bottom:1px solid var(--line);
+    background:var(--paper-2);
+  }
+  .kpi{
+    min-width:0;
+    padding:16px 24px 18px;
+    border-right:1px solid var(--line);
+    border-left:3px solid transparent;
+  }
+  .kpi:last-child{border-right:0}
+  .kpi[data-tone="ok"]{border-left-color:var(--ok)}
+  .kpi[data-tone="warn"]{border-left-color:var(--warn)}
+  .kpi[data-tone="danger"]{border-left-color:var(--danger)}
+  .kpi-label{
+    display:block;
+    font:600 10px/1 var(--mono);
+    letter-spacing:.13em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:12px;
+  }
+  .kpi-num{
+    display:block;
+    font:600 30px/1 var(--mono);
+    font-variant-numeric:tabular-nums;
+    letter-spacing:-0.02em;
+  }
+  .kpi-verdict{
+    display:block;
+    font:700 17px/1.2 var(--sans);
+    letter-spacing:.03em;
+    text-transform:uppercase;
+  }
+  .kpi-flag{
+    display:inline-block;
+    margin-left:12px;
+    font:600 11px/1 var(--mono);
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--muted);
+    vertical-align:4px;
+  }
+  #stat-qber-status[data-state="ok"]{color:var(--ok)}
+  #stat-qber-status[data-state="bad"]{color:var(--danger)}
+  .tone-idle{color:var(--muted)}
+  .tone-ok{color:var(--ok)}
+  .tone-warn{color:var(--warn)}
+  .tone-danger{color:var(--danger)}
+  .kpi-sub{
+    display:block;
+    margin-top:8px;
+    font:11px/1.5 var(--mono);
+    color:var(--muted);
+  }
+
+  /* Panels: chart + terminal */
+  .content{
+    flex:1;
+    min-height:0;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(320px,420px);
+  }
+  .panel{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    min-height:0;
+  }
+  .panel-term{border-left:1px solid var(--line)}
+  .panel-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:11px 20px;
+    border-bottom:1px solid var(--line);
+    background:var(--paper-2);
+  }
+  .panel-head .sec-label{margin-bottom:0}
+  .panel-note,.term-meta{
+    font:11px/1 var(--mono);
+    color:var(--muted);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .chart-wrap{
+    flex:1;
+    min-height:0;
+    padding:18px 20px 14px;
+    min-height:260px;
+  }
+  .chart-inner{position:relative;width:100%;height:100%}
+
+  /* Terminal */
+  .term-body{
+    flex:1;
+    min-height:0;
+    overflow-y:auto;
+    background:var(--term-bg);
+    border-radius:0;
+    padding:14px 16px 18px;
+    font:12px/1.75 var(--mono);
+  }
+  .log{display:flex;gap:12px;padding:0}
+  .log-time{flex:none;width:64px;color:#585F5C;font-variant-numeric:tabular-nums}
+  .log-lv{flex:none;width:30px;font-weight:600;color:#6E7673}
+  .log-msg{flex:1;min-width:0;overflow-wrap:anywhere;color:#B9BEB9}
+  .log.sys    .log-lv,.log.sys    .log-msg{color:#8CA2D4}
+  .log.ok     .log-lv,.log.ok     .log-msg{color:#7CC08E}
+  .log.warn   .log-lv,.log.warn   .log-msg{color:#D2A45C}
+  .log.error  .log-lv,.log.error  .log-msg{color:#DE7463}
+  .log.error  .log-msg{font-weight:500}
+  .term-body::-webkit-scrollbar{width:8px}
+  .term-body::-webkit-scrollbar-track{background:#17191B}
+  .term-body::-webkit-scrollbar-thumb{background:#3A3F41;border-radius:0}
+  .term-body::-webkit-scrollbar-thumb:hover{background:#4A5052}
+
+  /* Session archive */
+  .archive{
+    flex:none;
+    max-height:198px;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    border-top:1px solid var(--line);
+    background:var(--paper-2);
+  }
+  .archive-head{padding:8px 20px;min-height:38px}
+  .archive-title{display:flex;align-items:center;gap:8px;margin-bottom:0}
+  .archive-db{
+    font:600 8px/1 var(--mono);
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--accent);
+    border:1px solid rgba(32,58,143,.28);
+    border-radius:2px;
+    padding:3px 5px;
+  }
+  .archive-actions{display:flex;align-items:center;gap:12px;min-width:0}
+  .btn-quiet{
+    appearance:none;
+    flex:none;
+    font:600 9px/1 var(--mono);
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--muted);
+    background:transparent;
+    border:1px solid var(--line-strong);
+    border-radius:2px;
+    padding:5px 8px;
+    cursor:pointer;
+    transition:color .12s ease,border-color .12s ease;
+  }
+  .btn-quiet:hover:not(:disabled){color:var(--ink);border-color:var(--ink)}
+  .btn-quiet:disabled{opacity:.5;cursor:wait}
+  .archive-scroll{
+    min-height:0;
+    max-height:160px;
+    overflow:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .archive-scroll::-webkit-scrollbar{width:8px;height:8px}
+  .archive-scroll::-webkit-scrollbar-track{background:var(--paper-2)}
+  .archive-scroll::-webkit-scrollbar-thumb{background:var(--line-strong)}
+  .archive-table{
+    width:100%;
+    border-collapse:collapse;
+    font:11px/1.4 var(--mono);
+    font-variant-numeric:tabular-nums;
+  }
+  .archive-table th{
+    position:sticky;
+    top:0;
+    z-index:1;
+    padding:6px 20px;
+    text-align:left;
+    font:600 9px/1 var(--mono);
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--muted);
+    background:var(--paper-2);
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  .archive-table td{
+    padding:7px 20px;
+    border-bottom:1px solid #E7E3D9;
+    color:#4F534F;
+    white-space:nowrap;
+  }
+  .archive-table tbody tr:last-child td{border-bottom:0}
+  .archive-table tbody tr:hover td{background:rgba(32,58,143,.035)}
+  .archive-table .arch-session{color:var(--ink);font-weight:500;letter-spacing:.04em}
+  .archive-table .arch-num{color:var(--ink)}
+  .archive-table .arch-verdict{font-weight:600;letter-spacing:.04em}
+  .archive-table .arch-verdict[data-tone="danger"]{color:var(--danger)}
+  .archive-table .arch-verdict[data-tone="warn"]{color:var(--warn)}
+  .archive-table .arch-verdict[data-tone="ok"]{color:var(--ok)}
+  .archive-table .arch-muted{color:var(--muted)}
+  .archive-empty td{
+    padding:18px 20px;
+    color:var(--muted);
+    font:11px/1.5 var(--mono);
+  }
+  .archive-empty:hover td{background:transparent !important}
+
+  /* ---------- Responsive ---------- */
+  @media (max-width:1100px){
+    .app{grid-template-columns:1fr;height:auto;overflow:visible}
+    body{overflow:auto}
+    .rail{border-right:0;border-bottom:1px solid var(--line)}
+    .rail-scroll{overflow:visible}
+    .rail-foot{
+      display:grid;
+      grid-template-columns:1fr auto;
+      align-items:center;
+      gap:0 24px;
+    }
+    .health{margin-bottom:0}
+    .btn-primary{min-width:220px}
+    .main{overflow:visible}
+    .chart-wrap{min-height:340px}
+    .term-body{min-height:320px}
+  }
+  @media (max-width:800px){
+    .main-head{flex-wrap:wrap}
+    .kpis{grid-template-columns:1fr}
+    .kpi{border-right:0;border-bottom:1px solid var(--line)}
+    .kpi:last-child{border-bottom:0}
+    .content{grid-template-columns:1fr}
+    .panel-term{border-left:0;border-top:1px solid var(--line)}
+    .rail-foot{grid-template-columns:1fr}
+    .btn-primary{min-width:0}
+    .health{margin-bottom:12px}
+    .archive{max-height:240px}
+    .archive-scroll{max-height:202px}
+    .archive-head{padding:9px 14px;flex-wrap:wrap;row-gap:8px}
+    .archive-table{min-width:560px}
+    .archive-table th,.archive-table td{padding-left:14px;padding-right:14px}
+    .archive-actions{margin-left:auto}
+  }
+  @media (max-height:780px) and (min-width:1101px){
+    .archive{max-height:156px}
+    .archive-scroll{max-height:118px}
+  }
+
+  /* ---------- Legacy dark console theme ---------- */
+  body{
+    background:
+      radial-gradient(1100px 720px at 12% -8%,rgba(99,102,241,.20),transparent 62%),
+      radial-gradient(900px 620px at 103% 108%,rgba(34,211,238,.10),transparent 64%),
+      var(--paper);
+  }
+  ::selection{background:rgba(129,140,248,.34)}
+
+  .rail{
+    background:linear-gradient(180deg,rgba(15,23,42,.94),rgba(15,23,42,.78));
+    -webkit-backdrop-filter:blur(18px);
+    backdrop-filter:blur(18px);
+    border-right:1px solid var(--line);
+    box-shadow:16px 0 50px rgba(2,6,23,.45);
+  }
+  .rail-head{padding:20px 22px 18px;border-bottom:1px solid var(--line)}
+  .brand-name{
+    font:700 19px/1.1 var(--sans);
+    letter-spacing:-0.025em;
+    background:linear-gradient(90deg,#818CF8,#22D3EE);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .brand-sub{color:#94A3B8;margin-top:4px}
+  .section{padding:19px 22px 21px;border-bottom:1px solid var(--line)}
+  .sec-label{color:#94A3B8}
+  .field-label{color:#CBD5E1}
+  .ctl-val{color:#C7D2FE}
+  .ctl-note{color:#94A3B8}
+
+  .seg{
+    gap:3px;
+    padding:3px;
+    border:1px solid #334155;
+    border-radius:10px;
+    background:rgba(2,6,23,.48);
+    overflow:visible;
+  }
+  .seg button{
+    border-right:0;
+    border-radius:7px;
+    padding:9px 4px;
+    color:#94A3B8;
+  }
+  .seg button:hover{background:rgba(99,102,241,.14);color:#E2E8F0}
+  .seg button:active{background:rgba(99,102,241,.2)}
+  .seg button[aria-pressed="true"]{
+    background:linear-gradient(135deg,#6366F1,#8B5CF6);
+    color:#FFFFFF;
+    box-shadow:0 0 18px rgba(99,102,241,.35);
+  }
+  .seg .seg-sub{opacity:.7}
+
+  .select{
+    color:#E2E8F0;
+    background-color:#0F172A;
+    border-color:#334155;
+    border-radius:10px;
+    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2394A3B8' stroke-width='1.5'/%3E%3C/svg%3E");
+  }
+  .select:hover{border-color:#475569}
+
+  input[type=range]::-webkit-slider-runnable-track{
+    height:4px;
+    border-radius:2px;
+    background:linear-gradient(90deg,#818CF8 var(--fill,0%),#334155 var(--fill,0%));
+  }
+  input[type=range]::-webkit-slider-thumb{
+    width:16px;height:16px;
+    margin-top:-6px;
+    border-radius:50%;
+    background:#A5B4FC;
+    box-shadow:0 0 12px rgba(129,140,248,.9);
+  }
+  input[type=range]:hover::-webkit-slider-thumb{background:#C7D2FE}
+  input[type=range]::-moz-range-track{
+    height:4px;
+    border-radius:2px;
+    background:linear-gradient(90deg,#818CF8 var(--fill,0%),#334155 var(--fill,0%));
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px;height:16px;
+    border-radius:50%;
+    background:#A5B4FC;
+    box-shadow:0 0 12px rgba(129,140,248,.9);
+  }
+  input[type=range]:hover::-moz-range-thumb{background:#C7D2FE}
+
+  .health{color:#94A3B8}
+  .dot{background:#64748B}
+  .dot[data-state="ok"]{background:#34D399;box-shadow:0 0 10px rgba(52,211,153,.9)}
+  .dot[data-state="warn"]{background:#FBBF24;box-shadow:0 0 10px rgba(251,191,36,.8)}
+  .dot[data-state="bad"]{background:#F87171;box-shadow:0 0 10px rgba(248,113,113,.85)}
+
+  .btn-primary{
+    padding:13px 16px;
+    color:#FFFFFF;
+    background:linear-gradient(135deg,#6366F1,#A855F7);
+    border:0;
+    border-radius:10px;
+    box-shadow:0 12px 30px rgba(99,102,241,.34);
+    transition:filter .15s ease,box-shadow .15s ease,transform .15s ease;
+  }
+  .btn-primary:hover:not(:disabled){
+    background:linear-gradient(135deg,#6366F1,#A855F7);
+    border-color:transparent;
+    filter:brightness(1.09);
+    box-shadow:0 14px 34px rgba(99,102,241,.46);
+    transform:translateY(-1px);
+  }
+  .btn-primary:active:not(:disabled){
+    background:linear-gradient(135deg,#4F46E5,#9333EA);
+    border-color:transparent;
+    transform:translateY(0);
+  }
+
+  .main{
+    padding:22px 24px 20px;
+    gap:16px;
+    background:transparent;
+  }
+  .main-head{
+    padding:0 2px;
+    border-bottom:0;
+    background:transparent;
+  }
+  .main-title{font:600 23px/1.15 var(--sans);color:#F8FAFC}
+  .main-sub{margin-top:4px;color:#94A3B8}
+  .chip{
+    border:1px solid #334155;
+    border-radius:999px;
+    background:rgba(30,41,59,.7);
+    color:#94A3B8;
+    padding:6px 12px;
+  }
+  .chip[data-state="run"]{border-color:rgba(251,191,36,.4);color:#FBBF24;background:rgba(251,191,36,.08)}
+  .chip[data-state="ok"]{border-color:rgba(52,211,153,.4);color:#34D399;background:rgba(52,211,153,.08)}
+  .chip[data-state="error"]{border-color:rgba(248,113,113,.4);color:#F87171;background:rgba(248,113,113,.08)}
+  .session-id{color:#94A3B8}
+
+  .kpis{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:16px;
+    border-bottom:0;
+    background:transparent;
+  }
+  .kpi{
+    padding:18px 20px 19px;
+    border:1px solid var(--line);
+    border-right:1px solid var(--line);
+    border-left:4px solid #3B82F6;
+    border-radius:14px;
+    background:linear-gradient(180deg,rgba(30,41,59,.72),rgba(15,23,42,.64));
+    box-shadow:0 16px 40px rgba(2,6,23,.28);
+    -webkit-backdrop-filter:blur(16px);
+    backdrop-filter:blur(16px);
+  }
+  .kpi:last-child{border-right:1px solid var(--line)}
+  .kpi[data-tone="ok"]{border-left-color:#34D399}
+  .kpi[data-tone="warn"]{border-left-color:#FBBF24}
+  .kpi[data-tone="danger"]{border-left-color:#F87171}
+  .kpi-label{color:#94A3B8}
+  .kpi-num{font-size:32px;color:#F8FAFC}
+  .kpi-sub{color:#94A3B8}
+  .tone-idle{color:#94A3B8}
+  .tone-ok{color:#34D399}
+  .tone-warn{color:#FBBF24}
+  .tone-danger{color:#F87171}
+  #stat-qber-status[data-state="ok"]{color:#34D399}
+  #stat-qber-status[data-state="bad"]{color:#F87171}
+
+  .content{gap:16px}
+  .panel{
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:linear-gradient(180deg,rgba(30,41,59,.66),rgba(15,23,42,.68));
+    box-shadow:0 18px 45px rgba(2,6,23,.34);
+    -webkit-backdrop-filter:blur(16px);
+    backdrop-filter:blur(16px);
+    overflow:hidden;
+  }
+  .panel-term{border-left:1px solid var(--line)}
+  .panel-head{
+    padding:12px 20px;
+    border-bottom:1px solid var(--line);
+    background:rgba(2,6,23,.42);
+  }
+  .chart-wrap{padding:18px 20px 16px}
+  .term-head-left{display:flex;align-items:center;gap:12px;min-width:0}
+  .term-dots{display:flex;gap:6px;flex:none}
+  .term-dots i{display:block;width:9px;height:9px;border-radius:50%;background:#EF4444}
+  .term-dots i:nth-child(2){background:#F59E0B}
+  .term-dots i:nth-child(3){background:#22C55E}
+  .term-body{background:linear-gradient(180deg,#020617,#030712)}
+  .log-time{color:#475569}
+  .log-lv{color:#64748B}
+  .log-msg{color:#86EFAC}
+  .log.sys .log-lv,.log.sys .log-msg{color:#67E8F9}
+  .log.ok .log-lv,.log.ok .log-msg{color:#4ADE80}
+  .log.warn .log-lv,.log.warn .log-msg{color:#FBBF24}
+  .log.error .log-lv,.log.error .log-msg{color:#F87171}
+
+  .archive{
+    max-height:198px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:linear-gradient(180deg,rgba(30,41,59,.66),rgba(15,23,42,.68));
+    box-shadow:0 18px 45px rgba(2,6,23,.30);
+    -webkit-backdrop-filter:blur(16px);
+    backdrop-filter:blur(16px);
+    overflow:hidden;
+  }
+  .archive-head{padding:9px 20px;background:rgba(2,6,23,.42)}
+  #card-standard[data-tone="idle"]{border-left-color:#64748B}
+  #card-ml[data-tone="idle"]{border-left-color:#818CF8}
+  .archive-db{
+    color:#67E8F9;
+    border-color:rgba(34,211,238,.32);
+    background:rgba(34,211,238,.07);
+  }
+  .btn-quiet{
+    color:#94A3B8;
+    border-color:#334155;
+    background:rgba(15,23,42,.5);
+  }
+  .btn-quiet:hover:not(:disabled){color:#E2E8F0;border-color:#818CF8}
+  .archive-table th{
+    color:#94A3B8;
+    background:rgba(2,6,23,.92);
+    border-bottom:1px solid var(--line);
+  }
+  .archive-table td{
+    color:#CBD5E1;
+    border-bottom:1px solid rgba(148,163,184,.12);
+  }
+  .archive-table tbody tr:hover td{background:rgba(99,102,241,.10)}
+  .archive-table .arch-session{color:#F1F5F9}
+  .archive-table .arch-num{color:#E2E8F0}
+  .archive-table .arch-muted{color:#94A3B8}
+  .archive-empty td{color:#94A3B8}
+
+  .archive-scroll::-webkit-scrollbar-track{background:rgba(2,6,23,.45)}
+  .archive-scroll::-webkit-scrollbar-thumb{background:#334155}
+  .archive-scroll::-webkit-scrollbar-thumb:hover{background:#475569}
+  .term-body::-webkit-scrollbar-track{background:#020617}
+  .term-body::-webkit-scrollbar-thumb{background:#1E293B}
+  .term-body::-webkit-scrollbar-thumb:hover{background:#334155}
+
+  @media (max-width:1100px){
+    .main{padding:18px;gap:14px}
+    .kpis{gap:12px}
+    .panel-term{border-top:1px solid var(--line)}
+  }
+  @media (max-width:800px){
+    .main{padding:14px}
+    .kpis{grid-template-columns:1fr}
+    .kpi{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+    .kpi:last-child{border-bottom:1px solid var(--line)}
+    .panel-term{border-left:1px solid var(--line);border-top:1px solid var(--line)}
+    .archive{max-height:240px}
+    .archive-scroll{max-height:202px}
+    .archive-head{padding:9px 14px}
+  }
+  @media (max-width:600px){
+    .archive-table{min-width:0}
+    .archive-table th:nth-child(3),.archive-table td:nth-child(3),
+    .archive-table th:nth-child(4),.archive-table td:nth-child(4),
+    .archive-table th:nth-child(8),.archive-table td:nth-child(8){display:none}
+    .archive-table th,.archive-table td{padding-left:8px;padding-right:8px;font-size:10px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ CONTROL RAIL ============ -->
+  <aside class="rail" aria-label="Session controls">
+    <header class="rail-head">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true" focusable="false">
+        <rect x="1.5" y="1.5"  width="12" height="12" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+        <rect x="16.5" y="1.5" width="12" height="12" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+        <rect x="1.5" y="16.5" width="12" height="12" fill="none" stroke="#E2E8F0" stroke-width="2"/>
+        <rect x="19" y="19" width="7" height="7" fill="#818CF8"/>
+      </svg>
+      <div>
+        <div class="brand-name">QuantumSentinel</div>
+        <div class="brand-sub">BB84 Intrusion Detection</div>
+      </div>
+    </header>
+
+    <div class="rail-scroll">
+      <!-- Eavesdropper setup -->
+      <section class="section" aria-labelledby="sec-eve">
+        <span class="sec-label" id="sec-eve">Eavesdropper</span>
+        <div class="ctl">
+          <div class="ctl-row"><span class="field-label">Attack mode</span></div>
+          <div class="seg eve-seg" role="group" aria-label="Eavesdropper mode">
+            <button type="button" class="eve-btn" id="btn-off"    data-eve="off"    aria-pressed="true">Off</button>
+            <button type="button" class="eve-btn" id="btn-steady" data-eve="steady" aria-pressed="false">Steady</button>
+            <button type="button" class="eve-btn" id="btn-burst"  data-eve="burst"  aria-pressed="false">Burst</button>
+          </div>
+        </div>
+        <div class="ctl">
+          <div class="ctl-row">
+            <label class="field-label" for="eve-strength">Eve strength</label>
+            <span class="ctl-val" id="val-eve-strength">50%</span>
+          </div>
+          <input type="range" id="eve-strength" min="1" max="100" step="1" value="50">
+        </div>
+      </section>
+
+      <!-- Channel model -->
+      <section class="section" aria-labelledby="sec-channel">
+        <span class="sec-label" id="sec-channel">Channel model</span>
+        <div class="ctl">
+          <div class="ctl-row"><label class="field-label" for="channel">Noise channel</label></div>
+          <select class="select" id="channel">
+            <option value="depolarizing">Depolarizing</option>
+            <option value="amplitude_damping">Amplitude damping</option>
+            <option value="phase_damping">Phase damping</option>
+          </select>
+        </div>
+        <div class="ctl">
+          <div class="ctl-row">
+            <label class="field-label" for="noise">Noise level</label>
+            <span class="ctl-val" id="val-noise">4%</span>
+          </div>
+          <input type="range" id="noise" min="0" max="20" step="1" value="4">
+        </div>
+      </section>
+
+      <!-- Session parameters -->
+      <section class="section" aria-labelledby="sec-session">
+        <span class="sec-label" id="sec-session">Session parameters</span>
+        <div class="ctl">
+          <div class="ctl-row">
+            <label class="field-label" for="qubits">Qubits per session</label>
+            <span class="ctl-val" id="val-qubits">2000</span>
+          </div>
+          <input type="range" id="qubits" min="100" max="5000" step="100" value="2000">
+        </div>
+        <div class="ctl">
+          <div class="ctl-row"><span class="field-label">Simulation engine</span></div>
+          <div class="seg engine-seg" role="group" aria-label="Simulation engine">
+            <button type="button" id="btn-js" data-engine="js" aria-pressed="true">Classical <span class="seg-sub">NumPy</span></button>
+            <button type="button" id="btn-qiskit" data-engine="qiskit" aria-pressed="false">Qiskit <span class="seg-sub">density matrix</span></button>
+          </div>
+          <p class="ctl-note" id="engine-hint">Classical channel model · in-process NumPy engine</p>
+        </div>
+      </section>
+    </div>
+
+    <footer class="rail-foot">
+      <div class="health">
+        <span class="dot" id="health-dot" data-state="idle"></span>
+        <span class="health-text" id="health-text">API CHECK</span>
+      </div>
+      <button type="button" id="run-btn" class="btn-primary">
+        <svg id="loading-icon" class="hidden spin" width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" stroke-width="3"/>
+          <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        <span>Run Session</span>
+      </button>
+    </footer>
+  </aside>
+
+  <!-- ============ MAIN AREA ============ -->
+  <main class="main">
+    <header class="main-head">
+      <div>
+        <h1 class="main-title">Session Monitor</h1>
+        <div class="main-sub">QKD key-distillation telemetry · threshold 11.0%</div>
+      </div>
+      <div class="head-meta">
+        <span class="session-id hidden" id="session-id"></span>
+        <span class="chip" id="session-status" data-state="idle">Idle</span>
+      </div>
+    </header>
+
+    <!-- KPI strip -->
+    <section class="kpis" aria-label="Session indicators">
+      <article class="kpi" data-tone="none">
+        <span class="kpi-label">Session QBER</span>
+        <div>
+          <strong class="kpi-num" id="stat-qber">—</strong>
+          <span class="kpi-flag" id="stat-qber-status" data-state="idle">Awaiting data</span>
+        </div>
+        <span class="kpi-sub">Sifted bits in error · detection threshold 11.0%</span>
+      </article>
+      <article class="kpi" id="card-standard" data-tone="idle">
+        <span class="kpi-label">Standard rule &middot; &gt; 11%</span>
+        <strong class="kpi-verdict tone-idle" id="stat-standard">Awaiting run</strong>
+        <span class="kpi-sub" id="stat-standard-desc">Intercept-resend threshold gate · discards key above threshold</span>
+      </article>
+      <article class="kpi" id="card-ml" data-tone="idle">
+        <span class="kpi-label">QuantumSentinel &middot; ML</span>
+        <strong class="kpi-verdict tone-idle" id="stat-ml">Awaiting run</strong>
+        <span class="kpi-sub" id="stat-ml-desc">Trained classifier verdict · confidence —</span>
+      </article>
+    </section>
+
+    <!-- Chart + terminal -->
+    <section class="content">
+      <div class="panel">
+        <header class="panel-head">
+          <span class="sec-label">Block QBER &middot; 20 blocks</span>
+          <span class="panel-note" id="chart-note">Awaiting session data</span>
+        </header>
+        <div class="chart-wrap">
+          <div class="chart-inner"><canvas id="qberChart"></canvas></div>
+        </div>
+      </div>
+      <div class="panel panel-term">
+        <header class="panel-head">
+          <div class="term-head-left">
+            <span class="term-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="sec-label">Event log</span>
+          </div>
+          <span class="term-meta" id="term-count">0 events</span>
+        </header>
+        <div id="terminal" class="term-body" role="log" aria-live="polite" aria-label="Session event log"></div>
+      </div>
+    </section>
+
+    <!-- Durable session archive -->
+    <section class="archive" aria-labelledby="archive-title">
+      <header class="panel-head archive-head">
+        <span class="sec-label archive-title" id="archive-title">
+          Session archive
+          <span class="archive-db">PostgreSQL</span>
+        </span>
+        <div class="archive-actions">
+          <span class="panel-note" id="archive-meta">Checking archive…</span>
+          <button type="button" class="btn-quiet" id="archive-refresh">Refresh</button>
+        </div>
+      </header>
+      <div class="archive-scroll" tabindex="0" aria-label="Archived sessions, newest first">
+        <table class="archive-table">
+          <thead>
+            <tr>
+              <th scope="col">Time</th>
+              <th scope="col">Session</th>
+              <th scope="col">Eve (sim)</th>
+              <th scope="col">Noise</th>
+              <th scope="col">QBER</th>
+              <th scope="col">Rule</th>
+              <th scope="col">ML</th>
+              <th scope="col">P(attack)</th>
+            </tr>
+          </thead>
+          <tbody id="archive-body">
+            <tr class="archive-empty"><td colspan="8">Loading archived sessions…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =============== API base =============== */
+  // The backend serves this page and the API from one origin, so relative URLs
+  // are the default. Opening the file directly falls back to the local API;
+  // `?api=http://host:port` overrides either case.
+  const API_BASE = (function () {
+    const override = new URLSearchParams(window.location.search).get('api');
+    if (override) return override.replace(/\/+$/, '');
+    if (window.location.protocol === 'file:') return 'http://localhost:8000';
+    return '';
+  })();
+
+  /* =============== State & elements =============== */
+  const state = {
+    eve: 'off',
+    eveStrength: 50,
+    noise: 4,
+    qubits: 2000,
+    channel: 'depolarizing',
+    engine: 'js'
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    run: $('run-btn'),
+    spin: $('loading-icon'),
+    qber: $('stat-qber'),
+    qberFlag: $('stat-qber-status'),
+    cardStd: $('card-standard'),
+    stdV: $('stat-standard'),
+    stdD: $('stat-standard-desc'),
+    cardMl: $('card-ml'),
+    mlV: $('stat-ml'),
+    mlD: $('stat-ml-desc'),
+    term: $('terminal'),
+    termCount: $('term-count'),
+    chartNote: $('chart-note'),
+    sessionId: $('session-id'),
+    sessionStatus: $('session-status'),
+    healthDot: $('health-dot'),
+    healthText: $('health-text'),
+    engineHint: $('engine-hint'),
+    archiveBody: $('archive-body'),
+    archiveMeta: $('archive-meta'),
+    archiveRefresh: $('archive-refresh')
+  };
+
+  const TONES = { ok: 'tone-ok', warn: 'tone-warn', danger: 'tone-danger', idle: 'tone-idle' };
+  const LEVELS = { info: 'INF', ok: 'OK', warn: 'WRN', error: 'ERR', sys: 'SYS' };
+
+  /* =============== Helpers =============== */
+  function num(v, d = 1) {
+    return (typeof v === 'number' && isFinite(v)) ? v.toFixed(d) : '\u2014';
+  }
+  function fmtInt(v) {
+    return (typeof v === 'number' && isFinite(v)) ? v.toLocaleString('en-US') : '\u2014';
+  }
+  function shortId(id) {
+    return String(id || '').replace(/-/g, '').slice(0, 8).toUpperCase() || '\u2014';
+  }
+  function nowStamp() {
+    const d = new Date();
+    return [d.getHours(), d.getMinutes(), d.getSeconds()]
+      .map((n) => String(n).padStart(2, '0')).join(':');
+  }
+
+  /* =============== Terminal =============== */
+  let logCount = 0;
+  function log(msg, level = 'info') {
+    const row = document.createElement('div');
+    row.className = 'log ' + level;
+
+    const t = document.createElement('span');
+    t.className = 'log-time';
+    t.textContent = nowStamp();
+
+    const lv = document.createElement('span');
+    lv.className = 'log-lv';
+    lv.textContent = LEVELS[level] || 'INF';
+
+    const m = document.createElement('span');
+    m.className = 'log-msg';
+    m.textContent = msg;
+
+    row.append(t, lv, m);
+    els.term.appendChild(row);
+    while (els.term.childElementCount > 500) {
+      els.term.removeChild(els.term.firstElementChild);
+    }
+    els.term.scrollTop = els.term.scrollHeight;
+    logCount++;
+    els.termCount.textContent = logCount + (logCount === 1 ? ' event' : ' events');
+  }
+
+  function setSessionStatus(text, stateName) {
+    els.sessionStatus.textContent = text;
+    els.sessionStatus.dataset.state = stateName;
+  }
+
+  function applyTone(card, verdictEl, tone, text) {
+    card.dataset.tone = tone;
+    verdictEl.textContent = text;
+    verdictEl.className = 'kpi-verdict ' + TONES[tone];
+  }
+
+  /* =============== Session archive =============== */
+  function archiveTime(value) {
+    const d = new Date(value);
+    if (!isFinite(d.getTime())) return '\u2014';
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) +
+      ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  function archiveEve(item) {
+    if (item.eve_mode === 'off') return 'Off';
+    return (item.eve_mode === 'steady' ? 'Steady ' : 'Burst ') + item.eve_strength + '%';
+  }
+
+  function archiveEmpty(message) {
+    const tr = document.createElement('tr');
+    tr.className = 'archive-empty';
+    const td = document.createElement('td');
+    td.colSpan = 8;
+    td.textContent = message;
+    tr.appendChild(td);
+    return tr;
+  }
+
+  function renderArchive(payload) {
+    const items = (payload && Array.isArray(payload.items)) ? payload.items : [];
+    const total = (payload && typeof payload.total === 'number') ? payload.total : items.length;
+    els.archiveBody.replaceChildren();
+
+    if (!items.length) {
+      els.archiveBody.appendChild(archiveEmpty('No archived sessions yet \u2014 run a session to create the first record.'));
+      els.archiveMeta.textContent = '0 archived';
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    items.forEach((item) => {
+      const tr = document.createElement('tr');
+
+      const add = (text, className, tone) => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        if (className) td.className = className;
+        if (tone) td.dataset.tone = tone;
+        tr.appendChild(td);
+        return td;
+      };
+
+      const timeCell = add(archiveTime(item.created_at), 'arch-muted');
+      timeCell.title = item.created_at || '';
+      const idCell = add(shortId(item.session_id), 'arch-session');
+      idCell.title = item.session_id || '';
+      add(archiveEve(item), 'arch-muted');
+      add(item.noise_percent + '%', 'arch-muted');
+      add(num(item.qber, 2) + '%', 'arch-num');
+
+      const ruleMissed = item.attack_present && !item.standard_detected;
+      add(item.standard_detected ? 'FLAG' : 'PASS', 'arch-verdict',
+        item.standard_detected ? 'danger' : (ruleMissed ? 'warn' : 'ok'));
+      add(item.ml_detected ? 'EVE' : 'CLEAR', 'arch-verdict',
+        item.ml_detected ? 'danger' : 'ok');
+      add(num((item.attack_probability || 0) * 100, 1) + '%', 'arch-muted');
+
+      fragment.appendChild(tr);
+    });
+    els.archiveBody.appendChild(fragment);
+    els.archiveMeta.textContent = fmtInt(total) + ' archived';
+  }
+
+  let archiveSequence = 0;
+  async function refreshArchive() {
+    if (!els.archiveBody) return;
+    const sequence = ++archiveSequence;
+    els.archiveRefresh.disabled = true;
+    try {
+      const res = await fetchTimeout(API_BASE + '/sessions?limit=8', { method: 'GET' }, 8000);
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+      const data = await res.json();
+      if (!data || !Array.isArray(data.items)) throw new Error('malformed archive response');
+      if (sequence !== archiveSequence) return;
+      renderArchive(data);
+    } catch (err) {
+      if (sequence !== archiveSequence) return;
+      els.archiveBody.replaceChildren(archiveEmpty('Archive unavailable \u2014 ' + err.message));
+      els.archiveMeta.textContent = 'Archive unavailable';
+    } finally {
+      if (sequence === archiveSequence) els.archiveRefresh.disabled = false;
+    }
+  }
+
+  els.archiveRefresh.addEventListener('click', refreshArchive);
+
+  /* =============== Controls =============== */
+  function paintSlider(el) {
+    const min = Number(el.min), max = Number(el.max);
+    const pct = ((Number(el.value) - min) / (max - min)) * 100;
+    el.style.setProperty('--fill', pct + '%');
+  }
+
+  function updateVal(id) {
+    const el = $(id), out = $('val-' + id);
+    if (!el || !out) return;
+    const v = parseInt(el.value, 10);
+    out.textContent = id === 'qubits' ? String(v) : v + '%';
+    paintSlider(el);
+    if (id === 'eve-strength') state.eveStrength = v;
+    else if (id === 'noise') state.noise = v;
+    else if (id === 'qubits') state.qubits = v;
+  }
+
+  function setEve(mode) {
+    state.eve = mode;
+    document.querySelectorAll('.eve-btn').forEach((b) => {
+      b.setAttribute('aria-pressed', String(b.dataset.eve === mode));
+    });
+  }
+
+  function setEngine(engine) {
+    state.engine = engine;
+    document.querySelectorAll('.engine-seg button').forEach((b) => {
+      b.setAttribute('aria-pressed', String(b.dataset.engine === engine));
+    });
+  }
+
+  ['eve-strength', 'noise', 'qubits'].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener('input', () => updateVal(id));
+    updateVal(id);
+  });
+
+  const channelEl = $('channel');
+  channelEl.addEventListener('change', () => { state.channel = channelEl.value; });
+  state.channel = channelEl.value;
+
+  document.querySelectorAll('.eve-btn').forEach((b) => {
+    b.addEventListener('click', () => setEve(b.dataset.eve));
+  });
+  document.querySelectorAll('.engine-seg button').forEach((b) => {
+    b.addEventListener('click', () => setEngine(b.dataset.engine));
+  });
+
+  /* =============== Chart =============== */
+  let qberChart = null;
+  try {
+    qberChart = new Chart($('qberChart'), {
+      type: 'line',
+      data: {
+        labels: Array.from({ length: 20 }, (_, i) => 'T' + (i + 1)),
+        datasets: [
+          {
+            label: 'Block QBER',
+            data: Array(20).fill(null),
+            borderColor: '#818CF8',
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 3,
+            pointHitRadius: 10,
+            tension: 0.25,
+            fill: false
+          },
+          {
+            label: 'Threshold 11%',
+            data: Array(20).fill(11),
+            borderColor: '#F87171',
+            borderDash: [4, 4],
+            borderWidth: 1.2,
+            pointRadius: 0,
+            pointHitRadius: 0,
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 350 },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#020617',
+            titleColor: '#E2E8F0',
+            bodyColor: '#CBD5E1',
+            borderColor: '#334155',
+            borderWidth: 1,
+            titleFont: { family: "'IBM Plex Mono', monospace", size: 11 },
+            bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
+            padding: 8,
+            cornerRadius: 2,
+            boxWidth: 8,
+            boxHeight: 2,
+            callbacks: {
+              label: (ctx) => (ctx.datasetIndex === 0)
+                ? ' QBER ' + (isFinite(ctx.parsed.y) ? ctx.parsed.y.toFixed(2) : '—') + '%'
+                : ' Threshold 11.0%'
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 15,
+            grid: { color: 'rgba(148,163,184,.13)', drawTicks: false },
+            border: { display: false },
+            ticks: {
+              color: '#94A3B8',
+              padding: 6,
+              font: { family: "'IBM Plex Mono', monospace", size: 10 },
+              callback: (v) => v + '%'
+            }
+          },
+          x: {
+            grid: { display: false },
+            border: { color: 'rgba(148,163,184,.18)' },
+            ticks: {
+              color: '#94A3B8',
+              maxRotation: 0,
+              font: { family: "'IBM Plex Mono', monospace", size: 10 }
+            }
+          }
+        }
+      }
+    });
+  } catch (err) {
+    log('Chart.js failed to initialise — chart disabled (' + err.message + ')', 'warn');
+  }
+
+  /* =============== Fetch helper =============== */
+  async function fetchTimeout(url, opts, ms) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), ms);
+    try {
+      return await fetch(url, Object.assign({ signal: ctrl.signal }, opts));
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /* =============== Health check =============== */
+  async function checkHealth() {
+    els.healthDot.dataset.state = 'idle';
+    els.healthText.textContent = 'API CHECK';
+    try {
+      const res = await fetchTimeout(API_BASE + '/health', { method: 'GET' }, 6000);
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+      const h = await res.json();
+      const databaseReady = h.database_connected !== false;
+      const parts = ['ONLINE'];
+      if (h.model_loaded === false) { parts.push('MODEL MISSING'); }
+      else { parts.push('MODEL READY'); }
+      if (!databaseReady) { parts.push('DB OFFLINE'); }
+      else { parts.push('DB READY'); }
+      if (h.qiskit_available === false) { parts.push('NO QISKIT'); }
+      els.healthDot.dataset.state = (h.status === 'ok' && h.model_loaded !== false && databaseReady) ? 'ok' : 'warn';
+      els.healthText.textContent = parts.join(' \u00B7 ');
+      els.healthText.title = 'API v' + (h.version || '?') +
+        ' \u00B7 ' + (h.model && h.model.name ? h.model.name + ' v' + (h.model.version || '?') : 'detector not reported') +
+        ' \u00B7 ' + (databaseReady ? 'PostgreSQL ' + (h.database_name || 'archive') + ' connected' : 'PostgreSQL archive unavailable') +
+        ' \u00B7 ' + (h.qiskit_available ? 'Qiskit engine available' : 'Qiskit engine unavailable');
+
+      if (h.model && h.model.name) {
+        log('Backend online \u00B7 ' + h.model.name + ' v' + (h.model.version || '?'), 'sys');
+      }
+      if (h.model_loaded === false) {
+        log('Detector model not loaded \u2014 train the detector, then restart the API before running a session', 'error');
+      }
+      if (!databaseReady) {
+        log('PostgreSQL archive unavailable \u2014 sessions cannot be recorded; /run returns HTTP 503 until the database reconnects', 'error');
+      }
+      if (h.qiskit_available === false) {
+        els.engineHint.textContent = 'Qiskit unavailable on backend \u00B7 use the classical engine';
+        log('Backend reports Qiskit engine unavailable \u2014 Qiskit requests will return HTTP 503', 'warn');
+      }
+    } catch (err) {
+      els.healthDot.dataset.state = 'bad';
+      els.healthText.textContent = 'API OFFLINE';
+      els.healthText.title = 'Backend at ' + (API_BASE || 'same-origin') + ' is unreachable';
+      log('Health check failed \u2014 ' + err.message + ' \u00B7 backend at ' + (API_BASE || 'same-origin') + ' not reachable yet', 'error');
+    }
+  }
+
+  /* =============== Run session =============== */
+  function idleResults(message) {
+    els.qber.textContent = '\u2014';
+    els.qberFlag.textContent = '\u2014';
+    els.qberFlag.dataset.state = 'idle';
+    applyTone(els.cardStd, els.stdV, 'idle', 'NO DATA');
+    els.stdD.textContent = message;
+    applyTone(els.cardMl, els.mlV, 'idle', 'NO DATA');
+    els.mlD.textContent = message;
+    els.chartNote.textContent = 'Run failed \u2014 no session data';
+  }
+
+  function failRun(message) {
+    setSessionStatus('Run failed', 'error');
+    idleResults(message);
+  }
+
+  function renderResults(d) {
+    const qberStr = num(d.qber);
+    const thr = (typeof d.threshold === 'number') ? d.threshold : 11;
+
+    els.qber.textContent = qberStr + '%';
+    const high = (typeof d.qber === 'number' && d.qber > thr);
+    els.qberFlag.textContent = high ? 'High' : 'Normal';
+    els.qberFlag.dataset.state = high ? 'bad' : 'ok';
+
+    /* Standard rule card */
+    let stdTone, stdText;
+    if (d.standard_detected) {
+      stdTone = 'danger';
+      stdText = 'ATTACK DETECTED';
+      els.stdD.textContent = 'QBER ' + qberStr + '% above ' + num(thr) + '% \u2014 key discarded';
+      log('Standard rule: QBER ' + qberStr + '% exceeds ' + num(thr) + '% threshold \u2014 key discard mandated', 'warn');
+    } else if (d.attack_present) {
+      stdTone = 'warn';
+      stdText = 'SAFE (VULNERABLE)';
+      els.stdD.textContent = 'QBER ' + qberStr + '% within threshold \u2014 attack present, rule missed';
+      log('Standard rule: QBER ' + qberStr + '% within threshold \u2014 key accepted despite active attack', 'warn');
+    } else {
+      stdTone = 'ok';
+      stdText = 'SAFE (SECURE)';
+      els.stdD.textContent = 'QBER ' + qberStr + '% within threshold \u2014 key accepted';
+      log('Standard rule: QBER ' + qberStr + '% within threshold \u2014 key accepted', 'ok');
+    }
+    applyTone(els.cardStd, els.stdV, stdTone, stdText);
+
+    /* ML detector card — verdict comes straight from the classifier */
+    const conf = num(d.ml_confidence);
+    let mlTone, mlText;
+    if (d.ml_detected) {
+      mlTone = 'danger';
+      mlText = 'EVE DETECTED';
+      els.mlD.textContent = 'Confidence ' + conf + '% \u00B7 attack probability ' + num((d.attack_probability || 0) * 100) + '%';
+      log('ML verdict: eavesdropper detected \u00B7 confidence ' + conf + '% \u00B7 probability ' + num((d.attack_probability || 0) * 100) + '%', 'error');
+    } else {
+      mlTone = 'ok';
+      mlText = 'CHANNEL SECURE';
+      els.mlD.textContent = 'Confidence ' + conf + '% \u00B7 no intrusion signature';
+      log('ML verdict: channel secure \u00B7 confidence ' + conf + '%', 'ok');
+    }
+    applyTone(els.cardMl, els.mlV, mlTone, mlText);
+
+    /* Chart — real 20-block series */
+    let yMax = 15;
+    if (qberChart) {
+      const blocks = Array.isArray(d.block_qber) ? d.block_qber.slice(0, 20).map((v) => (typeof v === 'number' && isFinite(v)) ? v : null) : [];
+      while (blocks.length < 20) blocks.push(null);
+      qberChart.data.datasets[0].data = blocks;
+      const measured = blocks.filter((v) => v !== null);
+      const peak = measured.length ? Math.max(11, Math.max.apply(null, measured)) : 11;
+      yMax = Math.max(15, Math.ceil((peak + 2) / 5) * 5);
+      qberChart.options.scales.y.max = yMax;
+      qberChart.update();
+    }
+    els.chartNote.textContent = 'Engine ' + (d.engine || '\u2014') + ' \u00B7 y-scale ' + yMax + '%';
+
+    /* Critical escalation: rule passed while an attack was in flight */
+    if (d.ml_detected && !d.standard_detected && d.attack_present) {
+      log('CRITICAL: standard rule passed an active ' + (d.attack_mode || 'unknown') + ' attack \u2014 ML model flagged session ' + shortId(d.session_id), 'error');
+    }
+
+    setSessionStatus(d.ml_detected ? 'Threat flagged' : 'Complete', d.ml_detected ? 'error' : 'ok');
+    els.sessionId.textContent = 'SESSION ' + shortId(d.session_id);
+    els.sessionId.classList.remove('hidden');
+  }
+
+  async function runSession() {
+    if (els.run.disabled) return;
+    els.run.disabled = true;
+    els.run.setAttribute('aria-busy', 'true');
+    els.spin.classList.remove('hidden');
+    setSessionStatus('Running', 'run');
+    els.sessionId.classList.add('hidden');
+    els.term.innerHTML = '';
+    logCount = 0;
+    els.termCount.textContent = '0 events';
+
+    log('Running session \u00B7 eve=' + state.eve + (state.eve !== 'off' ? ' @ ' + state.eveStrength + '%' : '') +
+        ' \u00B7 noise=' + state.noise + '% \u00B7 channel=' + state.channel +
+        ' \u00B7 qubits=' + state.qubits + ' \u00B7 engine=' + state.engine, 'sys');
+    log('POST ' + (API_BASE || '(same-origin)') + '/run', 'sys');
+
+    const payload = {
+      eve: state.eve,
+      eve_strength: state.eveStrength,
+      noise: state.noise,
+      qubits: state.qubits,
+      channel: state.channel,
+      engine: state.engine
+    };
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 120000);
+    try {
+      const res = await fetch(API_BASE + '/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal
+      });
+      clearTimeout(timer);
+
+      if (!res.ok) {
+        let detail = '';
+        try { detail = (await res.text()).slice(0, 200); } catch (_) { /* body unreadable */ }
+        log('POST /run failed \u2014 HTTP ' + res.status + ' ' + res.statusText + (detail ? ' \u00B7 ' + detail : ''), 'error');
+        failRun('Backend returned an error \u2014 no results');
+        return;
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (err) {
+        log('POST /run returned invalid JSON \u2014 ' + err.message, 'error');
+        failRun('Malformed backend response \u2014 no results');
+        return;
+      }
+
+      if (!Array.isArray(data.block_qber)) {
+        log('Response missing block_qber series \u2014 chart left unchanged', 'warn');
+      }
+
+      renderResults(data);
+
+      log('Session ' + shortId(data.session_id) + ' \u00B7 engine ' + (data.engine || state.engine) +
+          ' \u00B7 ' + num(data.elapsed_ms) + ' ms', 'sys');
+      log('Sifted ' + fmtInt(data.sifted_bits) + ' bits \u00B7 rate ' + num((data.sifted_rate || 0) * 100) +
+          '% \u00B7 X ' + num(data.x_qber) + '% \u00B7 Z ' + num(data.z_qber) + '%', 'info');
+      log('Noise-floor estimate ' + num(data.expected_qber) + '% QBER', 'info');
+      if (data.warning) {
+        log('Backend warning: ' + data.warning, 'warn');
+      }
+      log('Session archived to PostgreSQL', 'ok');
+      log('Session complete', 'ok');
+      refreshArchive();
+    } catch (err) {
+      clearTimeout(timer);
+      if (err && err.name === 'AbortError') {
+        log('POST /run timed out after 120 s \u00B7 engine may still be busy', 'error');
+      } else {
+        log('POST /run failed \u2014 ' + (err && err.message ? err.message : String(err)) +
+            ' \u00B7 is the API reachable at ' + (API_BASE || 'port 8000') + '?', 'error');
+      }
+      failRun('Request failed \u2014 no results');
+    } finally {
+      clearTimeout(timer);
+      els.run.disabled = false;
+      els.run.setAttribute('aria-busy', 'false');
+      els.spin.classList.add('hidden');
+    }
+  }
+
+  els.run.addEventListener('click', runSession);
+
+  /* =============== Boot =============== */
+  log('Console ready \u00B7 awaiting session', 'sys');
+  checkHealth();
+  refreshArchive();
+})();
+</script>
+</body>
+</html>
