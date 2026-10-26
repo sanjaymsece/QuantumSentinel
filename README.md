@@ -10,7 +10,7 @@ plots real per-block QBER. The detector never receives eavesdropper ground
 truth; labels are returned separately only so the demo can show when the
 traditional 11% rule missed an attack.
 
-![QuantumSentinel dashboard](docs/dashboard.png)
+![QuantumSentinel dashboard](docs/image.png)
 
 ## Quick start
 
