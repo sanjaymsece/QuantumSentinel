@@ -1339,11 +1339,31 @@
   }
 
   /* =============== Health check =============== */
-  async function checkHealth() {
-    els.healthDot.dataset.state = 'idle';
-    els.healthText.textContent = 'API CHECK';
+  // Free Render services spin down when idle. A cold start takes longer than
+  // the initial health request timeout, so retry briefly and show
+  // "API WAKING UP" instead of a false "API OFFLINE".
+  const HEALTH_RETRY_DELAY_MS = 5000;
+  const HEALTH_RETRY_WINDOW_MS = 90000;
+  let healthRetryDeadline = 0;
+  let healthRetryTimer = null;
+  let healthRetryLogged = false;
+
+  function scheduleHealthRetry() {
+    clearTimeout(healthRetryTimer);
+    healthRetryTimer = setTimeout(() => checkHealth(true), HEALTH_RETRY_DELAY_MS);
+  }
+
+  async function checkHealth(isRetry) {
+    if (!isRetry) {
+      els.healthDot.dataset.state = 'idle';
+      els.healthText.textContent = 'API CHECK';
+    }
     try {
-      const res = await fetchTimeout(API_BASE + '/health', { method: 'GET' }, 6000);
+      const res = await fetchTimeout(
+        API_BASE + '/health',
+        { method: 'GET' },
+        isRetry ? 15000 : 10000
+      );
       if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
       const h = await res.json();
       const databaseReady = h.database_connected !== false;
@@ -1373,7 +1393,24 @@
         els.engineHint.textContent = 'Qiskit unavailable on backend \u00B7 use the classical engine';
         log('Backend reports Qiskit engine unavailable \u2014 Qiskit requests will return HTTP 503', 'warn');
       }
+
+      const wasRetrying = isRetry;
+      healthRetryDeadline = 0;
+      healthRetryLogged = false;
+      clearTimeout(healthRetryTimer);
+      if (wasRetrying) refreshArchive();
     } catch (err) {
+      if (Date.now() < healthRetryDeadline) {
+        els.healthDot.dataset.state = 'idle';
+        els.healthText.textContent = 'API WAKING UP';
+        els.healthText.title = 'Backend at ' + (API_BASE || 'same-origin') + ' is starting; retrying automatically';
+        if (!healthRetryLogged) {
+          log('Backend is starting (free-tier cold start) \u2014 retrying automatically', 'warn');
+          healthRetryLogged = true;
+        }
+        scheduleHealthRetry();
+        return;
+      }
       els.healthDot.dataset.state = 'bad';
       els.healthText.textContent = 'API OFFLINE';
       els.healthText.title = 'Backend at ' + (API_BASE || 'same-origin') + ' is unreachable';
@@ -1558,7 +1595,8 @@
 
   /* =============== Boot =============== */
   log('Console ready \u00B7 awaiting session', 'sys');
-  checkHealth();
+  healthRetryDeadline = Date.now() + HEALTH_RETRY_WINDOW_MS;
+  checkHealth(false);
   refreshArchive();
 })();
 </script>
